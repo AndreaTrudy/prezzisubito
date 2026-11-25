@@ -14,6 +14,7 @@
       --accent: #38bdf8;
       --accent-2: #6366f1;
       --ok: #22c55e;
+      --warn: #eab308;
     }
 
     * {
@@ -273,6 +274,12 @@
       margin-left: 6px;
     }
 
+    .price-check {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--warn);
+    }
+
     .go-btn {
       text-decoration: none;
       background: rgba(255, 255, 255, 0.1);
@@ -289,45 +296,6 @@
     .go-btn:hover {
       background: rgba(56, 189, 248, 0.25);
       border-color: var(--accent);
-    }
-
-    .key-stores-bar {
-      width: min(66.666vw, 760px);
-      min-width: 300px;
-      margin: 22px auto 0;
-      padding: 12px 16px;
-      border-radius: 12px;
-      background: rgba(15, 23, 42, 0.55);
-      border: 1px solid rgba(148, 163, 184, 0.15);
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 0.84rem;
-      color: var(--text-muted);
-    }
-
-    .key-links {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .key-link {
-      text-decoration: none;
-      padding: 5px 11px;
-      border-radius: 8px;
-      font-weight: 650;
-      font-size: 0.8rem;
-      color: #f8fafc;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-    }
-
-    .key-link:hover {
-      border-color: var(--accent);
-      background: rgba(56, 189, 248, 0.18);
     }
 
     .empty-card {
@@ -360,7 +328,7 @@
     }
 
     @media (max-width: 640px) {
-      .deal-strip, .section-label, .empty-card, .key-stores-bar {
+      .deal-strip, .section-label, .empty-card {
         width: 100%;
         min-width: 0;
       }
@@ -381,7 +349,7 @@
     <main class="container">
       <header>
         <div class="brand">PrezziSubito</div>
-        <p class="subtitle">Confronto rapido dei prezzi reali per giochi PC in Euro (€) — gratuito, senza registrazione</p>
+        <p class="subtitle">Confronto rapido dei prezzi per giochi PC in Euro (€) — gratuito, senza registrazione</p>
       </header>
 
       <form class="search-box" id="search-form">
@@ -478,17 +446,24 @@
     const STORE_COLORS = {
       'Steam': '#38bdf8',
       'Epic Games': '#a855f7',
+      'Instant Gaming': '#f97316',
+      'G2A': '#facc15',
       'GOG': '#c084fc',
       'Humble Store': '#ef4444',
       'Green Man Gaming': '#22c55e',
-      'Fanatical': '#facc15',
-      'GamersGate': '#f97316',
-      'Origin / EA': '#fb7185',
-      'Ubisoft Store': '#60a5fa',
-      'GameBillet': '#2dd4bf',
-      'Voidu': '#818cf8',
-      'Gamesplanet': '#34d399'
+      'Fanatical': '#eab308',
+      'Gamesplanet': '#34d399',
+      'GamersGate': '#fb923c'
     };
+
+    const SECONDARY_STORES = [
+      { store: 'Instant Gaming', url: (q) => `https://www.instant-gaming.com/it/ricerca/?q=${q}` },
+      { store: 'G2A', url: (q) => `https://www.g2a.com/category/gaming-c1?query=${q}` },
+      { store: 'Humble Store', url: (q) => `https://www.humblebundle.com/store/search?search=${q}` },
+      { store: 'Green Man Gaming', url: (q) => `https://www.greenmangaming.com/search/?query=${q}` },
+      { store: 'Fanatical', url: (q) => `https://www.fanatical.com/en/search?search=${q}` },
+      { store: 'Gamesplanet', url: (q) => `https://it.gamesplanet.com/search?query=${q}` }
+    ];
 
     const formEl = document.getElementById('search-form');
     const inputEl = document.getElementById('game-input');
@@ -515,80 +490,85 @@
       statusEl.textContent = 'Inserisci il nome di un gioco PC oppure scegli un suggerimento rapido.';
       resultsEl.innerHTML = `
         <div class="empty-card">
-          Scrivi un titolo nella barra qui sopra (ad esempio <strong>SCUM</strong> o <strong>Cyberpunk 2077</strong>) per confrontare i prezzi reali in Euro (€) sugli store ufficiali.
+          Scrivi un titolo nella barra qui sopra (ad esempio <strong>SCUM</strong> o <strong>Cyberpunk 2077</strong>) per vedere i prezzi rilevati in Euro (€) e i collegamenti rapidi agli altri store PC.
         </div>
       `;
     }
 
-    function renderKeyStoresBar(query) {
-      const q = encodeURIComponent(query);
+    function buildLiveStrip(query, d) {
+      const color = STORE_COLORS[d.store] || '#38bdf8';
+      const priceNow = formatEur(d.price) || '';
+      const priceOld = d.regular ? `<span class="price-old">${formatEur(d.regular)}</span>` : '';
+      const note = d.exactEur ? 'Prezzo rilevato in Euro (€)' : 'Offerta rilevata';
+
       return `
-        <div class="key-stores-bar">
-          <span>Controllo rapido siti key esterni per <strong>${escapeHtml(query)}</strong>:</span>
-          <div class="key-links">
-            <a class="key-link" href="https://www.instant-gaming.com/it/ricerca/?q=${q}" target="_blank" rel="noopener noreferrer">Instant Gaming</a>
-            <a class="key-link" href="https://www.g2a.com/category/gaming-c1?query=${q}" target="_blank" rel="noopener noreferrer">G2A</a>
-            <a class="key-link" href="https://store.epicgames.com/it/browse?q=${q}" target="_blank" rel="noopener noreferrer">Epic Games</a>
+        <div class="deal-strip" style="--store-color: ${color};">
+          <div class="store-meta">
+            <span class="store-badge">${escapeHtml(d.store)}</span>
+            <div class="store-info">
+              <div class="store-title">${escapeHtml(d.title || query)}</div>
+              <div class="store-sub">${note}</div>
+            </div>
+          </div>
+          <div class="deal-actions">
+            <div class="price-group">
+              <span class="price-now">${priceNow}</span>
+              ${priceOld}
+            </div>
+            <a class="go-btn" href="${escapeHtml(d.url)}" target="_blank" rel="noopener noreferrer">Vai allo store</a>
           </div>
         </div>
       `;
     }
 
-    function renderDeals(query, deals) {
-      if (!Array.isArray(deals) || deals.length === 0) {
-        statusEl.textContent = `Nessun prezzo ufficiale trovato per "${query}".`;
-        resultsEl.innerHTML = `
-          <div class="empty-card">
-            Nessun prezzo diretto rilevato per <strong>${escapeHtml(query)}</strong>. Verifica l'ortografia del titolo oppure controlla i link rapidi qui sotto.
-          </div>
-          ${renderKeyStoresBar(query)}
-        `;
-        return;
-      }
+    function buildCheckStrip(query, item) {
+      const color = STORE_COLORS[item.store] || '#94a3b8';
+      const encodedQ = encodeURIComponent(query);
 
-      const mainStores = ['Steam', 'Epic Games'];
-      const topDeals = deals.filter(d => mainStores.includes(d.store));
-      const otherDeals = deals.filter(d => !mainStores.includes(d.store));
-
-      const buildStrip = (d) => {
-        const color = STORE_COLORS[d.store] || '#38bdf8';
-        const priceNow = formatEur(d.price) || '';
-        const priceOld = d.regular ? `<span class="price-old">${formatEur(d.regular)}</span>` : '';
-        const note = d.exactEur ? 'Listino ufficiale Italia (€)' : 'Offerta rilevata (€ stimato)';
-
-        return `
-          <div class="deal-strip" style="--store-color: ${color};">
-            <div class="store-meta">
-              <span class="store-badge">${escapeHtml(d.store)}</span>
-              <div class="store-info">
-                <div class="store-title">${escapeHtml(d.title || query)}</div>
-                <div class="store-sub">${note}</div>
-              </div>
-            </div>
-            <div class="deal-actions">
-              <div class="price-group">
-                <span class="price-now">${priceNow}</span>
-                ${priceOld}
-              </div>
-              <a class="go-btn" href="${escapeHtml(d.url)}" target="_blank" rel="noopener noreferrer">Vai all’offerta</a>
+      return `
+        <div class="deal-strip" style="--store-color: ${color};">
+          <div class="store-meta">
+            <span class="store-badge">${escapeHtml(item.store)}</span>
+            <div class="store-info">
+              <div class="store-title">${escapeHtml(query)}</div>
+              <div class="store-sub">Disponibilità e prezzo diretto sul sito ufficiale</div>
             </div>
           </div>
-        `;
-      };
+          <div class="deal-actions">
+            <div class="price-group">
+              <span class="price-check">Controlla sul sito</span>
+            </div>
+            <a class="go-btn" href="${escapeHtml(item.url(encodedQ))}" target="_blank" rel="noopener noreferrer">Apri store</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderResults(query, liveDeals) {
+      const validDeals = Array.isArray(liveDeals)
+        ? liveDeals.filter(d => Number.isFinite(Number(d.price)) && Number(d.price) > 0)
+        : [];
+
+      const liveStoreNames = new Set(validDeals.map(d => d.store));
+      const extraStores = SECONDARY_STORES.filter(s => !liveStoreNames.has(s.store));
 
       let html = '';
-      if (topDeals.length > 0) {
-        html += `<div class="section-label">Store principali</div>`;
-        html += `<div class="deals-list">${topDeals.map(buildStrip).join('')}</div>`;
-      }
-      if (otherDeals.length > 0) {
-        html += `<div class="section-label">Altri store PC con prezzo disponibile (${otherDeals.length})</div>`;
-        html += `<div class="deals-list">${otherDeals.map(buildStrip).join('')}</div>`;
+
+      if (validDeals.length > 0) {
+        html += `<div class="section-label">Prezzi rilevati in Euro (€)</div>`;
+        html += `<div class="deals-list">${validDeals.map(d => buildLiveStrip(query, d)).join('')}</div>`;
       }
 
-      html += renderKeyStoresBar(query);
+      html += `<div class="section-label">Altri store PC — verifica diretta sul sito</div>`;
+      html += `<div class="deals-list">${extraStores.map(s => buildCheckStrip(query, s)).join('')}</div>`;
+
       resultsEl.innerHTML = html;
-      statusEl.textContent = `Trovati ${deals.length} prezzi reali in Euro (€) per "${query}".`;
+
+      if (validDeals.length > 0) {
+        statusEl.textContent = `Trovati ${validDeals.length} prezzi in Euro (€) e ${extraStores.length} store da controllare direttamente per "${query}".`;
+      } else {
+        statusEl.textContent = `Prezzo diretto non rilevato automaticamente per "${query}": puoi controllare i ${extraStores.length} store qui sotto.`;
+      }
     }
 
     async function runSearch(rawQuery) {
@@ -599,9 +579,9 @@
       }
 
       const token = ++activeToken;
-      statusEl.textContent = `Ricerca prezzi in Euro (€) per "${query}"...`;
+      statusEl.textContent = `Ricerca in corso per "${query}"...`;
       resultsEl.innerHTML = `
-        <div class="empty-card">Sto recuperando i prezzi aggiornati per <strong>${escapeHtml(query)}</strong>...</div>
+        <div class="empty-card">Sto verificando i prezzi disponibili per <strong>${escapeHtml(query)}</strong>...</div>
       `;
 
       try {
@@ -613,14 +593,11 @@
         }
 
         const data = await res.json();
-        renderDeals(query, data.deals || []);
+        renderResults(query, data.deals || []);
       } catch (err) {
         if (token !== activeToken) return;
-        statusEl.textContent = `Errore temporaneo nel recupero prezzi per "${query}".`;
-        resultsEl.innerHTML = `
-          <div class="empty-card">Non è stato possibile contattare il servizio prezzi al momento. Riprova tra qualche secondo.</div>
-          ${renderKeyStoresBar(query)}
-        `;
+        renderResults(query, []);
+        statusEl.textContent = `Servizio prezzi momentaneamente non raggiungibile per "${query}": puoi aprire gli store qui sotto.`;
       }
     }
 
