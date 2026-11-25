@@ -14,11 +14,6 @@
       --accent: #38bdf8;
       --accent-2: #6366f1;
       --ok: #22c55e;
-      --warn: #f59e0b;
-      --steam: #1b2838;
-      --epic: #2a2a2e;
-      --ig: #ff5400;
-      --g2a: #ffb400;
     }
 
     * {
@@ -162,31 +157,6 @@
       min-height: 22px;
     }
 
-    .related-bar {
-      width: min(720px, 100%);
-      margin: 0 auto 18px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .related-btn {
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      color: #e2e8f0;
-      border-radius: 10px;
-      padding: 6px 11px;
-      font-size: 0.82rem;
-      cursor: pointer;
-    }
-
-    .related-btn.active {
-      border-color: var(--accent);
-      background: rgba(56, 189, 248, 0.18);
-      color: #fff;
-    }
-
     .section-label {
       width: min(66.666vw, 760px);
       min-width: 300px;
@@ -296,11 +266,6 @@
       color: var(--ok);
     }
 
-    .price-now.lookup {
-      color: var(--warn);
-      font-size: 0.9rem;
-    }
-
     .price-old {
       font-size: 0.78rem;
       color: var(--text-muted);
@@ -324,6 +289,45 @@
     .go-btn:hover {
       background: rgba(56, 189, 248, 0.25);
       border-color: var(--accent);
+    }
+
+    .key-stores-bar {
+      width: min(66.666vw, 760px);
+      min-width: 300px;
+      margin: 22px auto 0;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    .key-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .key-link {
+      text-decoration: none;
+      padding: 5px 11px;
+      border-radius: 8px;
+      font-weight: 650;
+      font-size: 0.8rem;
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .key-link:hover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.18);
     }
 
     .empty-card {
@@ -356,15 +360,13 @@
     }
 
     @media (max-width: 640px) {
-      .deal-strip {
+      .deal-strip, .section-label, .empty-card, .key-stores-bar {
         width: 100%;
         min-width: 0;
+      }
+      .deal-strip {
         flex-direction: column;
         align-items: stretch;
-      }
-      .section-label, .empty-card {
-        width: 100%;
-        min-width: 0;
       }
       .deal-actions {
         justify-content: space-between;
@@ -379,7 +381,7 @@
     <main class="container">
       <header>
         <div class="brand">PrezziSubito</div>
-        <p class="subtitle">Confronto rapido dei prezzi per giochi PC in Euro (€) — gratuito, senza registrazione</p>
+        <p class="subtitle">Confronto rapido dei prezzi reali per giochi PC in Euro (€) — gratuito, senza registrazione</p>
       </header>
 
       <form class="search-box" id="search-form">
@@ -401,7 +403,6 @@
       </div>
 
       <div class="status-bar" id="status-bar"></div>
-      <div class="related-bar" id="related-bar"></div>
       <div id="results-container"></div>
     </main>
 
@@ -472,32 +473,29 @@
       }
     })();
 
-    const TOP_STORES = [
-      { id: '1', name: 'Steam', color: '#38bdf8' },
-      { id: '25', name: 'Epic Games', color: '#a855f7' },
-      { id: 'instant-gaming', name: 'Instant Gaming', color: '#ff5400', virtual: true },
-      { id: 'g2a', name: 'G2A', color: '#ffb400', virtual: true }
-    ];
+    const WORKER_URL = 'https://prezzisubito-api.andytrudu.workers.dev/';
 
-    const SECONDARY_STORES = [
-      { id: '7', name: 'GOG', color: '#c084fc' },
-      { id: '11', name: 'Humble Store', color: '#ef4444' },
-      { id: '3', name: 'Green Man Gaming', color: '#22c55e' },
-      { id: '2', name: 'GamersGate', color: '#f97316' },
-      { id: '8', name: 'Origin / EA', color: '#fb7185' },
-      { id: '15', name: 'Fanatical', color: '#facc15' },
-      { id: '23', name: 'GameBillet', color: '#2dd4bf' },
-      { id: '24', name: 'Voidu', color: '#818cf8' }
-    ];
-
-    const EUR_RATE = 0.92;
-    let activeSearchToken = 0;
+    const STORE_COLORS = {
+      'Steam': '#38bdf8',
+      'Epic Games': '#a855f7',
+      'GOG': '#c084fc',
+      'Humble Store': '#ef4444',
+      'Green Man Gaming': '#22c55e',
+      'Fanatical': '#facc15',
+      'GamersGate': '#f97316',
+      'Origin / EA': '#fb7185',
+      'Ubisoft Store': '#60a5fa',
+      'GameBillet': '#2dd4bf',
+      'Voidu': '#818cf8',
+      'Gamesplanet': '#34d399'
+    };
 
     const formEl = document.getElementById('search-form');
     const inputEl = document.getElementById('game-input');
     const statusEl = document.getElementById('status-bar');
-    const relatedEl = document.getElementById('related-bar');
     const resultsEl = document.getElementById('results-container');
+
+    let activeToken = 0;
 
     function formatEur(val) {
       const num = Number(val);
@@ -505,206 +503,92 @@
       return num.toFixed(2).replace('.', ',') + ' €';
     }
 
-    function fetchWithTimeout(url, timeoutMs = 2600) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      return fetch(url, { signal: controller.signal })
-        .finally(() => clearTimeout(timer));
-    }
-
-    async function fetchSteamItalyPrice(title, steamAppID) {
-      const term = encodeURIComponent((title || '').trim());
-      if (!term) return null;
-
-      const directUrl = `https://store.steampowered.com/api/storesearch/?term=${term}&l=italian&cc=it`;
-      const proxies = [
-        directUrl,
-        `https://corsproxy.io/?${encodeURIComponent(directUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`
-      ];
-
-      for (const endpoint of proxies) {
-        try {
-          const res = await fetchWithTimeout(endpoint, 2400);
-          if (!res.ok) continue;
-          const data = await res.json();
-          const items = Array.isArray(data?.items) ? data.items : [];
-          if (!items.length) continue;
-
-          const matched =
-            (steamAppID && items.find((it) => String(it.id) === String(steamAppID))) ||
-            items[0];
-
-          if (matched && matched.price_info && typeof matched.price_info.final === 'number') {
-            const finalEur = matched.price_info.final / 100;
-            const regularEur = typeof matched.price_info.initial === 'number' && matched.price_info.initial > matched.price_info.final
-              ? matched.price_info.initial / 100
-              : null;
-
-            return {
-              priceNow: formatEur(finalEur),
-              priceOld: regularEur ? formatEur(regularEur) : null,
-              sourceNote: 'Listino Steam Italia (€)',
-              url: `https://store.steampowered.com/app/${matched.id}/`
-            };
-          }
-        } catch (_) {
-          // Prova il prossimo endpoint
-        }
-      }
-
-      return null;
-    }
-
-    function buildStoreUrl(storeId, gameTitle, dealId, steamAppID) {
-      const q = encodeURIComponent(gameTitle || '');
-      if (storeId === '1') {
-        return steamAppID
-          ? `https://store.steampowered.com/app/${steamAppID}/`
-          : `https://store.steampowered.com/search/?term=${q}&cc=it`;
-      }
-      if (storeId === '25') {
-        return `https://store.epicgames.com/it/browse?q=${q}`;
-      }
-      if (storeId === 'instant-gaming') {
-        return `https://www.instant-gaming.com/it/ricerca/?q=${q}`;
-      }
-      if (storeId === 'g2a') {
-        return `https://www.g2a.com/category/gaming-c1?query=${q}`;
-      }
-      if (dealId) {
-        return `https://www.cheapshark.com/redirect?dealID=${encodeURIComponent(dealId)}`;
-      }
-      return `https://www.cheapshark.com/`;
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     function renderInitialPrompt() {
       statusEl.textContent = 'Inserisci il nome di un gioco PC oppure scegli un suggerimento rapido.';
-      relatedEl.innerHTML = '';
       resultsEl.innerHTML = `
         <div class="empty-card">
-          Scrivi un titolo nella barra qui sopra (ad esempio <strong>SCUM</strong> o <strong>Cyberpunk 2077</strong>) per confrontare i prezzi su Steam, Epic Games, Instant Gaming, G2A e altri store.
+          Scrivi un titolo nella barra qui sopra (ad esempio <strong>SCUM</strong> o <strong>Cyberpunk 2077</strong>) per confrontare i prezzi reali in Euro (€) sugli store ufficiali.
         </div>
       `;
     }
 
-    function renderStrips(queryTitle, dealsByStore, steamAppID) {
-      const buildStripHtml = (store) => {
-        const raw = dealsByStore[store.id];
-        let badgePrice = 'Cerca sul sito';
-        let isLookup = true;
-        let oldPriceHtml = '';
-        let subText = `Confronto ${store.name}`;
-        let actionLabel = 'Apri store';
-        let targetUrl = buildStoreUrl(store.id, queryTitle, raw?.dealID, steamAppID);
+    function renderKeyStoresBar(query) {
+      const q = encodeURIComponent(query);
+      return `
+        <div class="key-stores-bar">
+          <span>Controllo rapido siti key esterni per <strong>${escapeHtml(query)}</strong>:</span>
+          <div class="key-links">
+            <a class="key-link" href="https://www.instant-gaming.com/it/ricerca/?q=${q}" target="_blank" rel="noopener noreferrer">Instant Gaming</a>
+            <a class="key-link" href="https://www.g2a.com/category/gaming-c1?query=${q}" target="_blank" rel="noopener noreferrer">G2A</a>
+            <a class="key-link" href="https://store.epicgames.com/it/browse?q=${q}" target="_blank" rel="noopener noreferrer">Epic Games</a>
+          </div>
+        </div>
+      `;
+    }
 
-        if (raw && raw.customSteamPrice) {
-          badgePrice = raw.customSteamPrice;
-          isLookup = false;
-          subText = raw.sourceNote || 'Steam Italia (€)';
-          actionLabel = 'Vai a Steam';
-          targetUrl = raw.url || targetUrl;
-          if (raw.customSteamOld) {
-            oldPriceHtml = `<span class="price-old">${raw.customSteamOld}</span>`;
-          }
-        } else if (raw && raw.price) {
-          const usdPrice = parseFloat(raw.price);
-          const eurEstimate = formatEur(usdPrice * EUR_RATE);
-          if (eurEstimate) {
-            badgePrice = eurEstimate;
-            isLookup = false;
-            subText = store.id === '1'
-              ? 'Stima da listino USD → €'
-              : `Offerta rilevata (${store.name})`;
-            actionLabel = 'Vai all’offerta';
-          }
-          if (raw.retailPrice && parseFloat(raw.retailPrice) > usdPrice) {
-            const oldEur = formatEur(parseFloat(raw.retailPrice) * EUR_RATE);
-            if (oldEur) oldPriceHtml = `<span class="price-old">${oldEur}</span>`;
-          }
-        } else if (store.id === '25') {
-          badgePrice = 'Verifica su Epic';
-          isLookup = true;
-          subText = 'Apri la ricerca diretta su Epic Games Store';
-          actionLabel = 'Cerca su Epic';
-        } else if (store.id === 'instant-gaming' || store.id === 'g2a') {
-          badgePrice = 'Confronta key';
-          isLookup = true;
-          subText = `Controlla disponibilità e prezzo su ${store.name}`;
-          actionLabel = `Apri ${store.name}`;
-        }
+    function renderDeals(query, deals) {
+      if (!Array.isArray(deals) || deals.length === 0) {
+        statusEl.textContent = `Nessun prezzo ufficiale trovato per "${query}".`;
+        resultsEl.innerHTML = `
+          <div class="empty-card">
+            Nessun prezzo diretto rilevato per <strong>${escapeHtml(query)}</strong>. Verifica l'ortografia del titolo oppure controlla i link rapidi qui sotto.
+          </div>
+          ${renderKeyStoresBar(query)}
+        `;
+        return;
+      }
+
+      const mainStores = ['Steam', 'Epic Games'];
+      const topDeals = deals.filter(d => mainStores.includes(d.store));
+      const otherDeals = deals.filter(d => !mainStores.includes(d.store));
+
+      const buildStrip = (d) => {
+        const color = STORE_COLORS[d.store] || '#38bdf8';
+        const priceNow = formatEur(d.price) || '';
+        const priceOld = d.regular ? `<span class="price-old">${formatEur(d.regular)}</span>` : '';
+        const note = d.exactEur ? 'Listino ufficiale Italia (€)' : 'Offerta rilevata (€ stimato)';
 
         return `
-          <div class="deal-strip" style="--store-color: ${store.color};">
+          <div class="deal-strip" style="--store-color: ${color};">
             <div class="store-meta">
-              <span class="store-badge">${store.name}</span>
+              <span class="store-badge">${escapeHtml(d.store)}</span>
               <div class="store-info">
-                <div class="store-title">${queryTitle}</div>
-                <div class="store-sub">${subText}</div>
+                <div class="store-title">${escapeHtml(d.title || query)}</div>
+                <div class="store-sub">${note}</div>
               </div>
             </div>
             <div class="deal-actions">
               <div class="price-group">
-                <span class="price-now ${isLookup ? 'lookup' : ''}">${badgePrice}</span>
-                ${oldPriceHtml}
+                <span class="price-now">${priceNow}</span>
+                ${priceOld}
               </div>
-              <a class="go-btn" href="${targetUrl}" target="_blank" rel="noopener noreferrer">${actionLabel}</a>
+              <a class="go-btn" href="${escapeHtml(d.url)}" target="_blank" rel="noopener noreferrer">Vai all’offerta</a>
             </div>
           </div>
         `;
       };
 
-      resultsEl.innerHTML = `
-        <div class="section-label">Store principali</div>
-        <div class="deals-list">${TOP_STORES.map(buildStripHtml).join('')}</div>
-        <div class="section-label">Altri store PC</div>
-        <div class="deals-list">${SECONDARY_STORES.map(buildStripHtml).join('')}</div>
-      `;
-    }
-
-    async function loadGameDealsById(gameId, displayTitle, steamAppID, token) {
-      try {
-        const res = await fetchWithTimeout(`https://www.cheapshark.com/api/1.0/games?id=${encodeURIComponent(gameId)}`, 3200);
-        if (token !== activeSearchToken) return;
-
-        const dealsByStore = {};
-        let resolvedSteamId = steamAppID || null;
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.info?.steamAppID) resolvedSteamId = data.info.steamAppID;
-          const deals = Array.isArray(data?.deals) ? data.deals : [];
-          for (const d of deals) {
-            const sid = String(d.storeID);
-            const currentBest = dealsByStore[sid];
-            if (!currentBest || parseFloat(d.price) < parseFloat(currentBest.price)) {
-              dealsByStore[sid] = d;
-            }
-          }
-        }
-
-        renderStrips(displayTitle, dealsByStore, resolvedSteamId);
-
-        const steamIt = await fetchSteamItalyPrice(displayTitle, resolvedSteamId);
-        if (token !== activeSearchToken) return;
-
-        if (steamIt && steamIt.priceNow) {
-          dealsByStore['1'] = {
-            ...(dealsByStore['1'] || {}),
-            customSteamPrice: steamIt.priceNow,
-            customSteamOld: steamIt.priceOld,
-            sourceNote: steamIt.sourceNote,
-            url: steamIt.url
-          };
-          renderStrips(displayTitle, dealsByStore, resolvedSteamId);
-        }
-
-        statusEl.textContent = `Risultati per "${displayTitle}" — Steam Italia interrogato in € e store confrontati.`;
-      } catch (err) {
-        if (token !== activeSearchToken) return;
-        renderStrips(displayTitle, {}, steamAppID);
-        statusEl.textContent = `Connessione parziale per "${displayTitle}": puoi aprire i link diretti degli store.`;
+      let html = '';
+      if (topDeals.length > 0) {
+        html += `<div class="section-label">Store principali</div>`;
+        html += `<div class="deals-list">${topDeals.map(buildStrip).join('')}</div>`;
       }
+      if (otherDeals.length > 0) {
+        html += `<div class="section-label">Altri store PC con prezzo disponibile (${otherDeals.length})</div>`;
+        html += `<div class="deals-list">${otherDeals.map(buildStrip).join('')}</div>`;
+      }
+
+      html += renderKeyStoresBar(query);
+      resultsEl.innerHTML = html;
+      statusEl.textContent = `Trovati ${deals.length} prezzi reali in Euro (€) per "${query}".`;
     }
 
     async function runSearch(rawQuery) {
@@ -714,57 +598,29 @@
         return;
       }
 
-      const token = ++activeSearchToken;
-      statusEl.textContent = `Ricerca in corso per "${query}"...`;
-      relatedEl.innerHTML = '';
-      renderStrips(query, {}, null);
+      const token = ++activeToken;
+      statusEl.textContent = `Ricerca prezzi in Euro (€) per "${query}"...`;
+      resultsEl.innerHTML = `
+        <div class="empty-card">Sto recuperando i prezzi aggiornati per <strong>${escapeHtml(query)}</strong>...</div>
+      `;
 
       try {
-        const res = await fetchWithTimeout(
-          `https://www.cheapshark.com/api/1.0/games?title=${encodeURIComponent(query)}&limit=6`,
-          3200
-        );
-        if (token !== activeSearchToken) return;
+        const res = await fetch(`${WORKER_URL}?q=${encodeURIComponent(query)}`);
+        if (token !== activeToken) return;
 
-        const list = res.ok ? await res.json() : [];
-        if (!Array.isArray(list) || list.length === 0) {
-          statusEl.textContent = `Nessuna scheda trovata per "${query}" nel catalogo API: usa i link diretti agli store.`;
-          const steamIt = await fetchSteamItalyPrice(query, null);
-          if (token === activeSearchToken && steamIt?.priceNow) {
-            renderStrips(query, {
-              '1': {
-                customSteamPrice: steamIt.priceNow,
-                customSteamOld: steamIt.priceOld,
-                sourceNote: steamIt.sourceNote,
-                url: steamIt.url
-              }
-            }, null);
-          }
-          return;
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
         }
 
-        if (list.length > 1) {
-          relatedEl.innerHTML = list.map((item, idx) => `
-            <button type="button" class="related-btn ${idx === 0 ? 'active' : ''}" data-game-id="${item.gameID}" data-title="${item.external.replace(/"/g, '&quot;')}" data-steam-id="${item.steamAppID || ''}">
-              ${item.external}
-            </button>
-          `).join('');
-
-          relatedEl.querySelectorAll('.related-btn').forEach((btn) => {
-            btn.addEventListener('click', () => {
-              relatedEl.querySelectorAll('.related-btn').forEach((b) => b.classList.remove('active'));
-              btn.classList.add('active');
-              const nextToken = ++activeSearchToken;
-              loadGameDealsById(btn.dataset.gameId, btn.dataset.title, btn.dataset.steamId || null, nextToken);
-            });
-          });
-        }
-
-        const first = list[0];
-        await loadGameDealsById(first.gameID, first.external, first.steamAppID || null, token);
+        const data = await res.json();
+        renderDeals(query, data.deals || []);
       } catch (err) {
-        if (token !== activeSearchToken) return;
-        statusEl.textContent = `Impossibile raggiungere il catalogo esterno al momento per "${query}".`;
+        if (token !== activeToken) return;
+        statusEl.textContent = `Errore temporaneo nel recupero prezzi per "${query}".`;
+        resultsEl.innerHTML = `
+          <div class="empty-card">Non è stato possibile contattare il servizio prezzi al momento. Riprova tra qualche secondo.</div>
+          ${renderKeyStoresBar(query)}
+        `;
       }
     }
 
